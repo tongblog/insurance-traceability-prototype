@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>互联网保险销售可回溯管理 - 原型演示</title>
+<style>
+  :root {
+    --primary: #E53935;
+    --primary-dark: #AB000D;
+    --bg: #F5F5F5;
+    --card: #FFFFFF;
+    --text: #212121;
+    --text-secondary: #757575;
+    --border: #E0E0E0;
+    --success: #4CAF50;
+    --warning: #FF9800;
+    --info: #2196F3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
+
+  /* 顶部主导航 */
+  .top-bar { background: var(--primary); color: white; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
+  .top-bar h1 { font-size: 18px; font-weight: 500; }
+  .tab-group { display: flex; }
+  .tab-btn { padding: 16px 24px; color: rgba(255,255,255,0.7); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; font-size: 14px; user-select: none; }
+  .tab-btn.active { color: white; border-bottom-color: white; }
+  .tab-btn:hover { color: white; background: rgba(255,255,255,0.1); }
+
+  /* 主容器 */
+  .main { max-width: 1400px; margin: 24px auto; padding: 0 24px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ========= 用户端 PC 布局 ========= */
+  .user-layout { display: flex; gap: 24px; align-items: flex-start; }
+  .user-main { flex: 1; min-width: 0; }
+  .user-sidebar { width: 340px; flex-shrink: 0; }
+
+  /* 录制指示器 */
+  .record-indicator { position: fixed; top: 64px; right: 24px; z-index: 90; display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.75); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; }
+  .record-dot { width: 8px; height: 8px; background: #f44336; border-radius: 50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* 截图闪光 */
+  .capture-flash { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+  .capture-flash.active { opacity: 0.7; }
+
+  /* Toast 提示 */
+  .node-toast { position: fixed; bottom: 32px; right: 24px; z-index: 100; background: #212121; color: white; padding: 14px 20px; border-radius: 10px; font-size: 13px; min-width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: none; }
+  .node-toast.show { display: block; animation: slideUp 0.3s; }
+  .node-toast .toast-title { font-weight: 600; margin-bottom: 4px; color: #4FC3F7; font-size: 14px; }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* 页面切换 */
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* 面包屑 */
+  .breadcrumb { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+  .breadcrumb a { color: var(--primary); cursor: pointer; text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  /* 产品网格 */
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .product-card { background: var(--card); border-radius: 10px; padding: 20px; cursor: pointer; transition: box-shadow 0.2s, transform 0.15s; border: 1px solid var(--border); }
+  .product-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-2px); }
+  .product-card h3 { font-size: 16px; margin-bottom: 10px; }
+  .product-price { color: var(--primary); font-size: 28px; font-weight: 700; margin-bottom: 10px; }
+  .product-price small { font-size: 13px; color: var(--text-secondary); }
+  .product-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .tag { background: #FFF3E0; color: #E65100; padding: 3px 10px; border-radius: 4px; font-size: 12px; }
+  .product-company { font-size: 13px; color: var(--text-secondary); margin-top: 10px; }
+
+  /* 详情页 */
+  .detail-hero { background: var(--card); border-radius: 10px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .detail-hero h2 { font-size: 22px; margin-bottom: 16px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 200px; gap: 24px; align-items: start; }
+  .detail-info { font-size: 14px; line-height: 2.2; }
+  .detail-side { text-align: center; }
+  .detail-price { font-size: 36px; font-weight: 700; color: var(--primary); }
+  .detail-price small { font-size: 14px; color: var(--text-secondary); }
+  .detail-meta { font-size: 13px; color: var(--text-secondary); margin-top: 8px; }
+
+  /* 通用卡片 */
+  .card { background: var(--card); border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+
+  /* 按钮 */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; user-select: none; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-outline { background: white; color: var(--primary); border: 1px solid var(--primary); }
+  .btn-block { display: block; width: 100%; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-lg { padding: 14px 32px; font-size: 16px; }
+
+  /* 监管提示条 */
+  .regulatory-banner { background: #FFF8E1; border: 1px solid #FFE082; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.8; color: #F57F17; }
+  .regulatory-banner strong { color: #E65100; }
+
+  /* 表单 */
+  .form-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .form-group { flex: 1; }
+  .form-label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+  .form-label .req { color: var(--primary); }
+  .form-input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+  .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(229,57,53,0.1); }
+  .form-checkbox { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.6; cursor: pointer; }
+
+  /* 步骤指示器 */
+  .steps { display: flex; margin-bottom: 28px; background: var(--card); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .step { flex: 1; text-align: center; padding: 14px 8px; font-size: 13px; color: var(--text-secondary); position: relative; }
+  .step.active { color: var(--primary); font-weight: 600; background: #FFF5F5; }
+  .step.done { color: var(--success); }
+  .step .step-icon { display: block; font-size: 18px; margin-bottom: 4px; }
+  .step::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--border); }
+  .step.active::after { background: var(--primary); }
+  .step.done::after { background: var(--success); }
+
+  /* 协议列表 */
+  .agreement-list { }
+  .agreement-item { display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: background 0.15s; }
+  .agreement-item:hover { background: #FAFAFA; }
+  .agreement-item-left { display: flex; align-items: center; gap: 12px; }
+  .agreement-item-icon { font-size: 24px; }
+  .agreement-item-title { font-size: 14px; font-weight: 500; }
+  .agreement-item-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .agreement-item-arrow { color: var(--text-secondary); font-size: 14px; }
+
+  /* 协议弹窗 */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: white; border-radius: 12px; width: 680px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
+  .modal-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 16px; }
+  .modal-header .close-btn { cursor: pointer; font-size: 20px; color: #999; }
+  .modal-body { flex: 1; overflow-y: auto; padding: 24px; font-size: 14px; line-height: 1.9; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+
+  /* 确认信息表格 */
+  .confirm-table { width: 100%; font-size: 14px; line-height: 2.4; }
+  .confirm-table td:first-child { color: var(--text-secondary); width: 140px; }
+
+  /* 支付页 */
+  .payment-box { max-width: 420px; margin: 0 auto; text-align: center; padding: 40px 0; }
+
+  /* 完成页 */
+  .done-box { text-align: center; padding: 60px 0; }
+
+  /* 日志面板（右侧边栏） */
+  .log-panel-wrap { position: sticky; top: 80px; }
+  .log-panel { background: #1E1E1E; color: #0FC644; font-family: 'Courier New', Consolas, monospace; font-size: 12px; padding: 14px; border-radius: 8px; max-height: 260px; overflow-y: auto; line-height: 1.7; }
+  .log-panel .log-line { margin-bottom: 2px; word-break: break-all; }
+  .log-panel .log-time { color: #666; }
+
+  /* 侧边栏统计 */
+  .stat-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-mini-item { background: var(--card); border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .stat-mini-value { font-size: 22px; font-weight: 700; }
+  .stat-mini-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ========= 管理端样式 ========= */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .stat-value { font-size: 28px; font-weight: 700; }
+  .stat-card:nth-child(1) .stat-value { color: var(--primary); }
+  .stat-card:nth-child(2) .stat-value { color: var(--info); }
+  .stat-card:nth-child(3) .stat-value { color: var(--success); }
+  .stat-card:nth-child(4) .stat-value { color: var(--warning); }
+
+  .timeline-header { background: var(--card); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .timeline-header h2 { font-size: 18px; margin-bottom: 12px; }
+  .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .filter-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+  .filter-btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: white; user-select: none; }
+  .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  .session-info { background: var(--card); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; }
+
+  .timeline-container { background: var(--card); border-radius: 8px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 24px; }
+  .timeline-dot { position: absolute; left: -26px; top: 4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--primary); background: white; z-index: 1; }
+  .timeline-dot.recorded { background: var(--primary); }
+  .timeline-dot.screenshot { background: var(--info); border-color: var(--info); }
+  .timeline-content { background: #FAFAFA; border-radius: 8px; padding: 14px 16px; border: 1px solid var(--border); }
+  .timeline-time { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .timeline-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+  .timeline-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 6px; }
+  .badge-time { background: #E3F2FD; color: #1565C0; }
+  .badge-screenshot { background: #FFF3E0; color: #E65100; }
+  .badge-page { background: #E8F5E9; color: #2E7D32; }
+  .timeline-screenshot { margin-top: 10px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; max-width: 400px; cursor: pointer; }
+  .timeline-screenshot:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .screenshot-placeholder { height: 120px; background: #FAFAFA; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; }
+  .screenshot-label { font-size: 11px; color: var(--text-secondary); padding: 6px 10px; background: #FAFAFA; border-top: 1px solid var(--border); }
+
+  .screenshot-preview { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.92); z-index: 300; display: none; align-items: center; justify-content: center; flex-direction: column; }
+  .screenshot-preview.show { display: flex; }
+  .screenshot-preview .preview-card { background: white; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .screenshot-preview .preview-header { background: var(--primary); color: white; padding: 12px 20px; border-radius: 8px 8px 0 0; font-size: 15px; font-weight: 500; }
+  .screenshot-preview .preview-body { padding: 24px; }
+  .screenshot-preview .close-btn { color: white; margin-top: 20px; cursor: pointer; font-size: 14px; padding: 8px 20px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; user-select: none; }
+  .screenshot-preview .close-btn:hover { background: rgba(255,255,255,0.1); }
+
+  .prototype-label { text-align: center; color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<div class="capture-flash" id="captureFlash"></div>
+
+<!-- 录制指示器 -->
+<div class="record-indicator" id="recordIndicator">
+  <div class="record-dot"></div>
+  <span id="recordStatus">可回溯记录中</span>
+</div>
+
+<!-- Toast 提示 -->
+<div class="node-toast" id="nodeToast">
+  <div class="toast-title" id="toastTitle"></div>
+  <div id="toastContent"></div>
+</div>
+
+<!-- 顶部主导航 -->
+<div class="top-bar">
+  <h1>互联网保险销售可回溯管理系统</h1>
+  <div class="tab-group">
+    <div class="tab-btn active" onclick="switchView('user', this)">用户投保端</div>
+    <div class="tab-btn" onclick="switchView('admin', this)">管理后台端</div>
+    <div class="tab-btn" onclick="switchView('mindmap', this)">思维导图</div>
+  </div>
+</div>
+
+<!-- ========= 用户投保端（PC 样式）========= -->
+<div class="main view active" id="view-user">
+  <div class="prototype-label">原型演示：PC端用户投保流程 · 关键节点记录与截图机制展示</div>
+  <div class="user-layout">
+    <!-- 左侧主内容区 -->
+    <div class="user-main">
+
+      <!-- 页面1：产品列表 -->
+      <div class="page active" id="page-product">
+        <div class="breadcrumb">首页 &gt; 旅行险 &gt; 产品列表</div>
+        <h2 style="margin-bottom:16px; font-size:20px;">旅行险产品</h2>
+        <div class="regulatory-banner">
+          监管提示：根据《关于规范互联网保险销售行为可回溯管理的通知》（银保监发〔2020〕26号），本次投保过程中的操作时间、页面内容将被记录并保存，用于监管可回溯查验。
+        </div>
+        <div class="product-grid">
+          <div class="product-card" onclick="goPage('page-detail')">
+            <h3>安心游境外旅行险（豪华版）</h3>
+            <div class="product-price">¥299 <small>/份</small></div>
+            <div class="product-tags">
+              <span class="tag">医疗保障100万</span>
+              <span class="tag">旅行延误</span>
+              <span class="tag">意外伤害</span>
+              <span class="tag">个人责任</span>
+            </div>
+            <div class="product-company">承保公司：XX财产保险股份有限公司</div>
+          </div>
+          <div class="product-card" onclick="alert('原型演示，仅展示第一个产品流程')">
+            <h3>安心游境内旅行险（标准版）</h3>
+            <div class="product-price">¥49 <small>/份</small></div>
+            <div class="product-tags">
+              <span class="tag">医疗保障20万</span>
+              <span class="tag">意外保障</span>
+            </div>
+            <div class="product-company">承保公司：XX财产保险股份有限公司</div>
+          </div>
+          <div class="product-card" onclick="alert('原型演示，仅展示第一个产品流程')">
+            <h3>安心游申根旅行险</h3>
+            <div class="product-price">¥168 <small>/份</small></div>
+            <div class="product-tags">
+              <span class="tag">申根签证必备</span>
+              <span class="tag">医疗保障30万</span>
+            </div>
+            <div class="product-company">承保公司：XX财产保险股份有限公司</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面2：产品详情 -->
+      <div class="page" id="page-detail">
+        <div class="breadcrumb"><a onclick="goPage('page-product')">产品列表</a> &gt; 产品详情</div>
+        <div class="detail-hero">
+          <h2>安心游境外旅行险（豪华版）</h2>
+          <div class="detail-grid">
+            <div class="detail-info">
+              <div>境外医疗保障：<strong>100万元</strong></div>
+              <div>意外伤害保障：<strong>50万元</strong></div>
+              <div>旅行延误：每满4小时赔付<strong>300元</strong></div>
+              <div>行李丢失：每件最高<strong>2000元</strong></div>
+              <div>个人责任：<strong>50万元</strong></div>
+              <div>紧急救援：<strong>全程覆盖</strong></div>
+              <div style="margin-top:12px; color:var(--text-secondary);">保险期间：1-365天可选 &nbsp;|&nbsp; 投保年龄：0-80周岁</div>
+            </div>
+            <div class="detail-side">
+              <div class="detail-price">¥299 <small>/份</small></div>
+              <div class="detail-meta">保险期间：可选</div>
+              <button class="btn btn-primary btn-lg btn-block" style="margin-top:16px;" onclick="openClientNotice()">立即投保</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面3：投保提示（监管强制） -->
+      <div class="page" id="page-notice">
+        <div class="breadcrumb"><a onclick="goPage('page-detail')">产品详情</a> &gt; 客户告知书 &gt; 投保提示</div>
+        <div class="card">
+          <div class="card-title">投保提示（监管强制）</div>
+          <div class="regulatory-banner" style="margin-bottom:20px;">
+            根据《关于规范互联网保险销售行为可回溯管理的通知》，您即将进入投保流程，您的操作行为将被记录和保存。
+          </div>
+          <div style="font-size:14px; line-height:2; margin-bottom:24px;">
+            <p><strong>本次记录将包含以下内容：</strong></p>
+            <p>1. 您进入和离开各投保页面的精确时间</p>
+            <p>2. 您填写、点选的操作内容及对应时间</p>
+            <p>3. 您查看保险条款、告知书等页面的截图</p>
+            <p>4. 您的完整操作轨迹将保存至少 <strong>5年</strong>（监管最低要求）</p>
+            <p style="margin-top:12px;"><strong>隐私保护：</strong>我们仅收集与投保相关的必要信息，符合个人信息保护相关规定。</p>
+          </div>
+          <label class="form-checkbox" style="margin-bottom:24px;">
+            <input type="checkbox" id="agreeRecord" onchange="toggleConfirmBtn()">
+            <span>我已阅读并同意以上提示内容，知晓我的操作将被记录</span>
+          </label>
+          <div style="text-align:center;">
+            <button class="btn btn-primary btn-lg" id="confirmNoticeBtn" disabled onclick="recordNode('confirm_notice', '确认进入投保流程', true, function(){ goPage('page-form'); })">确认进入投保流程</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面4：填写投保信息 -->
+      <div class="page" id="page-form">
+        <div class="breadcrumb"><a onclick="goPage('page-notice')">投保提示</a> &gt; 填写投保信息</div>
+        <div class="steps">
+          <div class="step active"><span class="step-icon">1</span>填写信息</div>
+          <div class="step"><span class="step-icon">2</span>阅读条款</div>
+          <div class="step"><span class="step-icon">3</span>确认投保</div>
+        </div>
+        <div class="card">
+          <div class="card-title">被保险人信息</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label"><span class="req">*</span> 被保险人姓名</label>
+              <input class="form-input" placeholder="请输入被保险人姓名" onfocus="recordNode('focus_field', '聚焦字段：被保险人姓名')" onblur="recordInput(this, '被保险人姓名')">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span class="req">*</span> 身份证号</label>
+              <input class="form-input" placeholder="请输入身份证号" onfocus="recordNode('focus_field', '聚焦字段：身份证号')" onblur="recordInput(this, '身份证号')">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label"><span class="req">*</span> 出行日期</label>
+              <input class="form-input" type="date" onfocus="recordNode('focus_field', '聚焦字段：出行日期')" onchange="recordNode('input_field', '填写字段：出行日期')">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span class="req">*</span> 保险期间</label>
+              <select class="form-input" onchange="recordNode('select_field', '选择字段：保险期间 = ' + this.value)">
+                <option value="">请选择</option>
+                <option value="3天">3天</option>
+                <option value="7天">7天</option>
+                <option value="15天">15天</option>
+                <option value="30天">30天</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label"><span class="req">*</span> 受益人</label>
+              <select class="form-input" onchange="recordNode('select_field', '选择字段：受益人 = ' + this.value)">
+                <option value="">请选择</option>
+                <option value="法定受益人">法定受益人</option>
+                <option value="指定受益人">指定受益人</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span class="req">*</span> 手机号码</label>
+              <input class="form-input" placeholder="请输入联系电话" onfocus="recordNode('focus_field', '聚焦字段：手机号码')" onblur="recordInput(this, '手机号码')">
+            </div>
+          </div>
+        </div>
+          <div style="text-align:right; margin-top:8px;">
+            <button class="btn btn-primary btn-lg" onclick="goToAgreement()">下一步：阅读保险条款 &gt;</button>
+          </div>
+      </div>
+
+      <!-- 页面5：阅读保险条款 -->
+      <div class="page" id="page-agreement">
+        <div class="breadcrumb"><a onclick="goPage('page-form')">填写信息</a> &gt; 阅读保险条款</div>
+        <div class="steps">
+          <div class="step done"><span class="step-icon" style="color:var(--success);">✓</span>填写信息</div>
+          <div class="step active"><span class="step-icon">2</span>阅读条款</div>
+          <div class="step"><span class="step-icon">3</span>确认投保</div>
+        </div>
+        <div class="regulatory-banner" style="margin-bottom:16px;">
+          监管强制要求：保险条款、免除责任条款、健康告知等内容需在单独区域展示，请您仔细阅读并逐项确认已阅读。
+        </div>
+        <div class="card">
+          <div class="card-title">请阅读以下保险相关条款与告知书</div>
+          <div class="agreement-list">
+            <div class="agreement-item" onclick="openAgreement('客户告知书')">
+              <div class="agreement-item-left">
+                <div class="agreement-item-icon">📄</div>
+                <div>
+                  <div class="agreement-item-title">客户告知书</div>
+                  <div class="agreement-item-desc">保险公司资质、服务电话、犹豫期说明</div>
+                </div>
+              </div>
+              <div class="agreement-item-arrow">查看 &gt;</div>
+            </div>
+            <div class="agreement-item" onclick="openAgreement('保险条款（主条款）')">
+              <div class="agreement-item-left">
+                <div class="agreement-item-icon">📄</div>
+                <div>
+                  <div class="agreement-item-title">保险条款（主条款）</div>
+                  <div class="agreement-item-desc">保险合同构成、保险责任、责任免除</div>
+                </div>
+              </div>
+              <div class="agreement-item-arrow">查看 &gt;</div>
+            </div>
+            <div class="agreement-item" onclick="openAgreement('免除保险公司责任条款')">
+              <div class="agreement-item-left">
+                <div class="agreement-item-icon">⚠️</div>
+                <div>
+                  <div class="agreement-item-title" style="color:#E53935;">免除保险公司责任条款</div>
+                  <div class="agreement-item-desc">监管强制单独展示 · 请重点阅读</div>
+                </div>
+              </div>
+              <div class="agreement-item-arrow">查看 &gt;</div>
+            </div>
+            <div class="agreement-item" onclick="openAgreement('健康告知书')">
+              <div class="agreement-item-left">
+                <div class="agreement-item-icon">🏥</div>
+                <div>
+                  <div class="agreement-item-title">健康告知书</div>
+                  <div class="agreement-item-desc">请如实填写，未尽告知义务将影响理赔</div>
+                </div>
+              </div>
+              <div class="agreement-item-arrow">查看 &gt;</div>
+            </div>
+          </div>
+          <label class="form-checkbox" style="margin-top:20px; margin-bottom:16px;">
+            <input type="checkbox" id="agreeAll" onchange="checkAgreements()">
+            <span>我已仔细阅读并理解以上所有条款及告知书内容</span>
+          </label>
+          <div style="text-align:right;">
+            <button class="btn btn-primary btn-lg" id="confirmAgreementBtn" disabled onclick="recordNode('confirm_agreement', '确认已阅读所有条款', true, function(){ goPage('page-confirm'); })">确认并继续 &gt;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 协议查看弹窗 -->
+      <div class="modal-overlay" id="agreementOverlay">
+        <div class="modal-box">
+          <div class="modal-header">
+            <span id="agreementTitle"></span>
+            <span class="close-btn" onclick="closeAgreement()">✕</span>
+          </div>
+          <div class="modal-body" id="agreementContent"></div>
+          <div class="modal-footer">
+            <label class="form-checkbox">
+              <input type="checkbox" id="agreeCurrent" onchange="toggleAgreementConfirm()">
+              <span>我已仔细阅读并理解本条款内容</span>
+            </label>
+            <button class="btn btn-primary" id="agreementConfirmBtn" disabled onclick="confirmAgreement()">确认已阅读</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 客户告知书弹窗（点击立即投保时弹出） -->
+      <div class="modal-overlay" id="clientNoticeOverlay">
+        <div class="modal-box" style="max-width:640px;">
+          <div class="modal-header">
+            <span>📋 客户告知书</span>
+            <span class="close-btn" onclick="closeClientNotice()">✕</span>
+          </div>
+          <div class="modal-body" id="clientNoticeBody">
+            <p style="margin-bottom:12px;">尊敬的客户：</p>
+            <p style="margin-bottom:12px;">感谢您选择<strong>XX财产保险股份有限公司</strong>的保险产品。根据监管规定，特此告知以下内容：</p>
+            <p style="margin-bottom:8px;">1. 本公司系依法设立的保险公司，具备经营保险业务的合法资质。</p>
+            <p style="margin-bottom:8px;">2. 本保险产品由<strong>XX财产保险股份有限公司</strong>承保，全国服务热线：<strong>400-XXX-XXXX</strong>。</p>
+            <p style="margin-bottom:8px;">3. 请您仔细阅读保险条款，特别是<strong style="color:#E53935;">免除保险公司责任条款</strong>。</p>
+            <p style="margin-bottom:8px;">4. 您有权在犹豫期内（如有）申请撤销保险合同。</p>
+            <p style="margin-bottom:8px;">5. 如发生保险事故，请及时拨打报案电话：<strong>400-XXX-XXXX</strong>。</p>
+            <p style="margin-bottom:8px;">6. 本投保流程将根据监管要求进行可回溯记录，包括操作时间、页面截图等。</p>
+            <div style="background:#FFF8E1; border:1px solid #FFE082; border-radius:8px; padding:12px; margin-top:16px; font-size:13px; line-height:1.8;">
+              <strong style="color:#E65100;">⚠️ 特别提示：</strong>请您务必如实填写投保信息，未尽如实告知义务可能影响您的理赔权益。
+            </div>
+            <p style="margin-top:16px; font-size:12px; color:#999;">（以下为模拟内容，实际以保险公司官方条款为准）</p>
+          </div>
+          <div class="modal-footer">
+            <label class="form-checkbox">
+              <input type="checkbox" id="agreeClientNotice" onchange="toggleClientNoticeBtn()">
+              <span>我已仔细阅读并理解本告知书内容</span>
+            </label>
+            <button class="btn btn-primary" id="confirmClientNoticeBtn" disabled onclick="confirmClientNotice()">确认并继续</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面6：确认投保信息 -->
+      <div class="page" id="page-confirm">
+        <div class="breadcrumb"><a onclick="goPage('page-agreement')">阅读条款</a> &gt; 确认投保信息</div>
+        <div class="steps">
+          <div class="step done"><span class="step-icon" style="color:var(--success);">✓</span>填写信息</div>
+          <div class="step done"><span class="step-icon" style="color:var(--success);">✓</span>阅读条款</div>
+          <div class="step active"><span class="step-icon">3</span>确认投保</div>
+        </div>
+        <div class="card">
+          <div class="card-title">确认投保信息</div>
+          <table class="confirm-table">
+            <tr><td>被保险人</td><td>张**</td></tr>
+            <tr><td>证件号</td><td>320***********1234</td></tr>
+            <tr><td>出行日期</td><td>2025-03-15</td></tr>
+            <tr><td>保险期间</td><td>7天</td></tr>
+            <tr><td>受益人</td><td>法定受益人</td></tr>
+            <tr><td>保险产品</td><td>安心游境外旅行险（豪华版）</td></tr>
+            <tr><td><strong>保费合计</strong></td><td><strong style="color:var(--primary); font-size:18px;">¥299.00</strong></td></tr>
+          </table>
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
+            点击"确认投保并支付"即表示您同意投保，并确认以上信息无误。投保记录将按监管要求保存。
+          </div>
+        </div>
+        <div style="text-align:right; margin-top:8px;">
+          <button class="btn btn-primary btn-lg" onclick="recordNode('confirm_apply', '点击确认投保', true, function(){ goPage('page-payment'); })">确认投保并支付 &gt;</button>
+        </div>
+      </div>
+
+      <!-- 页面7：支付 -->
+      <div class="page" id="page-payment">
+        <div class="breadcrumb">确认投保 &gt; 支付保费</div>
+        <div class="card">
+          <div class="payment-box">
+            <div style="font-size:56px; margin-bottom:20px;">💳</div>
+            <div style="font-size:32px; font-weight:700; margin-bottom:8px; color:var(--text);">¥299.00</div>
+            <div style="color:var(--text-secondary); margin-bottom:32px; font-size:15px;">安心游境外旅行险（豪华版）</div>
+            <button class="btn btn-primary btn-lg btn-block" style="max-width:280px; margin:0 auto;" onclick="recordNode('payment', '完成支付', true, finishPurchase)">模拟支付成功</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 完成页面 -->
+      <div class="page" id="page-done">
+        <div class="card">
+          <div class="done-box">
+            <div style="font-size:72px; margin-bottom:20px;">✅</div>
+            <div style="font-size:22px; font-weight:600; margin-bottom:12px;">投保成功！</div>
+            <div style="color:var(--text-secondary); margin-bottom:8px;">保单号：<strong>PH202503150001</strong></div>
+            <div style="color:var(--text-secondary); margin-bottom:32px; font-size:13px;">电子保单将发送至您的邮箱，请注意查收。</div>
+            <button class="btn btn-outline btn-lg" onclick="resetDemo()">重新演示</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /user-main -->
+
+    <!-- 右侧边栏：日志 + 统计 -->
+    <div class="user-sidebar">
+      <div class="log-panel-wrap">
+        <div class="card" style="padding:16px;">
+          <div style="font-weight:600; margin-bottom:12px; font-size:15px;">实时记录日志</div>
+          <div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">关键节点（时间戳 + 操作 + 截图标记）</div>
+          <div class="log-panel" id="logPanel">
+            <div class="log-line"><span class="log-time">[等待操作]</span> 请在左侧页面中操作...</div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:16px; margin-top:16px;">
+          <div style="font-weight:600; margin-bottom:12px; font-size:15px;">本次会话统计</div>
+          <div class="stat-mini">
+            <div class="stat-mini-item">
+              <div class="stat-mini-value" style="color:#E53935;" id="statNodes">0</div>
+              <div class="stat-mini-label">记录节点</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-value" style="color:#FF9800;" id="statScreenshots">0</div>
+              <div class="stat-mini-label">截图数量</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-value" style="color:#4CAF50;" id="statDuration">0s</div>
+              <div class="stat-mini-label">会话时长</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-value" style="color:#2196F3;" id="statPages">1</div>
+              <div class="stat-mini-label">访问页面</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px; padding:14px; background:#E3F2FD; border-radius:8px; font-size:12px; line-height:1.9;">
+          <div style="font-weight:600; margin-bottom:6px;">监管合规要点</div>
+          <div>• <strong>进入/离开时点</strong>记录</div>
+          <div>• 每步操作轨迹记录</div>
+          <div>• 关键条款<strong>单独展示</strong></div>
+          <div>• 用户<strong>自主确认</strong>已阅读</div>
+          <div>• 资料保存<strong>≥5年</strong></div>
+        </div>
+      </div>
+    </div><!-- /user-sidebar -->
+  </div><!-- /user-layout -->
+</div>
+
+<!-- ========= 管理后台端 ========= -->
+<div class="main view" id="view-admin">
+  <div class="prototype-label">原型演示：管理后台查看用户投保操作轨迹，按时间节点展示所有记录</div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">今日投保会话</div><div class="stat-value">128</div></div>
+    <div class="stat-card"><div class="stat-label">记录节点总数</div><div class="stat-value">3,842</div></div>
+    <div class="stat-card"><div class="stat-label">截图总数</div><div class="stat-value">1,536</div></div>
+    <div class="stat-card"><div class="stat-label">合规率</div><div class="stat-value">99.2%</div></div>
+  </div>
+
+  <div class="timeline-header">
+    <h2>投保操作轨迹查询</h2>
+    <div class="filter-bar">
+      <input class="filter-input" placeholder="保单号 / 被保人姓名" style="width:200px;">
+      <input class="filter-input" type="date" value="2025-03-15">
+      <span style="color:var(--text-secondary);">至</span>
+      <input class="filter-input" type="date" value="2025-03-15">
+      <button class="filter-btn active">全部</button>
+      <button class="filter-btn">含截图</button>
+      <button class="filter-btn">关键节点</button>
+      <button class="btn btn-primary" style="padding:8px 20px; font-size:13px;">查询</button>
+      <button class="btn btn-outline" style="padding:8px 20px; font-size:13px;">导出报告</button>
+    </div>
+  </div>
+
+  <div class="session-info">
+    <div>
+      <div style="font-weight:600; margin-bottom:4px;">保单号：PH202503150001</div>
+      <div style="font-size:13px; color:var(--text-secondary);">被保人：张三 | 产品：安心游境外旅行险（豪华版）| 保费：¥299</div>
+    </div>
+    <div style="font-size:13px; color:var(--text-secondary); text-align:right;">
+      <div>会话时长：<strong>3分24秒</strong></div>
+      <div>记录节点：<strong>9个</strong> | 截图：<strong>5张</strong></div>
+    </div>
+  </div>
+
+  <div class="timeline-container">
+    <div style="font-weight:600; margin-bottom:20px; font-size:16px;">操作时间线（按时间倒序）</div>
+    <div class="timeline" id="adminTimeline"></div>
+  </div>
+</div>
+
+<!-- 截图预览弹窗 -->
+<div class="screenshot-preview" id="screenshotPreview">
+  <div class="preview-card">
+    <div class="preview-header" id="previewHeader"></div>
+    <div class="preview-body" id="previewBody"></div>
+  </div>
+  <div class="close-btn" onclick="closePreview()">✕ 关闭预览</div>
+</div>
+
+
+
+<!-- ======== 思维导图视图 ======== -->
+
+<div class="header">
+  <h1>互联网保险投保可回溯流程思维导图</h1>
+  <p>基于银保监发〔2020〕26号监管要求的完整操作节点映射</p>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#E53935;"></div> 截图节点</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF9800;"></div> 仅记录节点</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6A1B9A;"></div> 混合节点</div>
+  <div class="legend-item"><div class="legend-line" style="background:#E53935;"></div> 截图连线</div>
+  <div class="legend-item"><div class="legend-line-dash"></div> 仅记录连线</div>
+</div>
+
+<div class="svg-wrap">
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="720">
+  <defs>
+    <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#E53935"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#2196F3"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#FF9800"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#00000020"/>
+    </filter>
+  </defs>
+
+  <script type="text/javascript"><![CDATA[
+    var ns = "http://www.w3.org/2000/svg";
+
+    function rect(x, y, w, h, fill, stroke, rx) {
+      var r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", x); r.setAttribute("y", y);
+      r.setAttribute("width", w); r.setAttribute("height", h);
+      r.setAttribute("rx", rx||8); r.setAttribute("fill", fill);
+      r.setAttribute("stroke", stroke||"#CCC"); r.setAttribute("stroke-width", "2");
+      r.setAttribute("filter", "url(#shadow)");
+      document.getElementById("g1").appendChild(r);
+    }
+
+    function text(x, y, content, size, weight, fill, anchor) {
+      var t = document.createElementNS(ns, "text");
+      t.setAttribute("x", x); t.setAttribute("y", y);
+      t.setAttribute("font-size", size||12); t.setAttribute("font-weight", weight||600);
+      t.setAttribute("fill", fill||"#333"); t.setAttribute("text-anchor", anchor||"middle");
+      t.textContent = content;
+      document.getElementById("g1").appendChild(t);
+    }
+
+    function line(x1, y1, x2, y2, color, dashed) {
+      var l = document.createElementNS(ns, "line");
+      l.setAttribute("x1", x1); l.setAttribute("y1", y1);
+      l.setAttribute("x2", x2); l.setAttribute("y2", y2);
+      l.setAttribute("stroke", color); l.setAttribute("stroke-width", "2");
+      if (dashed) l.setAttribute("stroke-dasharray", "6,3");
+      l.setAttribute("marker-end", "url(#arrow" + (color==="#E53935"?"Red":color==="#2196F3"?"Blue":"Orange") + ")");
+      document.getElementById("g1").appendChild(l);
+    }
+
+    function label(x, y, content, color) {
+      var t = document.createElementNS(ns, "text");
+      t.setAttribute("x", x); t.setAttribute("y", y);
+      t.setAttribute("font-size", 10); t.setAttribute("fill", color||"#999");
+      t.setAttribute("text-anchor", "middle");
+      t.textContent = content;
+      document.getElementById("g1").appendChild(t);
+    }
+
+    // ===== 画整个思维导图 =====
+    // 根节点
+    rect(480, 20, 140, 48, "#E53935", "#AB000D", 10);
+    text(550, 50, "开始投保", 15, 700, "white", "middle");
+
+    // --- 第一层：点击立即投保 + 客户告知书 ---
+    // 点击立即投保（仅记录，不截图）
+    rect(100, 110, 160, 44, "#FFF3E0", "#FF9800", 8);
+    text(180, 137, "点击立即投保", 12, 600, "#E65100", "middle");
+
+    // 客户告知书弹窗
+    rect(480, 110, 180, 44, "#FFF3E0", "#FF9800", 8);
+    text(570, 130, "客户告知书弹窗", 12, 600, "#E65100", "middle");
+    text(570, 148, "查看：仅记录 | 确认：截图", 10, 400, "#999", "middle");
+
+    // --- 第二层：投保提示 + 填写信息 ---
+    rect(60, 220, 170, 44, "#E3F2FD", "#2196F3", 8);
+    text(145, 247, "填写投保信息", 12, 600, "#1565C0", "middle");
+
+    rect(480, 220, 180, 44, "#E3F2FD", "#2196F3", 8);
+    text(570, 247, "投保提示页", 12, 600, "#1565C0", "middle");
+
+    // --- 第三层：条款阅读 + 确认信息 ---
+    rect(60, 330, 170, 44, "#F3E5F5", "#9C27B0", 8);
+    text(145, 357, "阅读保险条款", 12, 600, "#6A1B9A", "middle");
+
+    rect(480, 330, 180, 44, "#E3F2FD", "#2196F3", 8);
+    text(570, 357, "确认投保信息", 12, 600, "#1565C0", "middle");
+
+    // --- 第四层：支付 ---
+    rect(270, 450, 160, 44, "#E3F2FD", "#2196F3", 8);
+    text(350, 477, "支付保费", 12, 600, "#1565C0", "middle");
+
+    // --- 第五层：完成 ---
+    rect(270, 560, 160, 48, "#E8F5E9", "#2E7D32", 10);
+    text(350, 590, "投保完成", 15, 700, "#2E7D32", "middle");
+
+    // ===== 连线 =====
+    // 根 → 点击立即投保（仅记录，虚线橙色）
+    line(480, 44, 180, 110, "#FF9800", true);
+    label(310, 78, "仅记录", "#FF9800");
+
+    // 根 → 客户告知书（虚线橙色）
+    line(550, 44, 570, 110, "#FF9800", true);
+    label(570, 78, "查看:仅记录 | 确认:截图", "#FF9800");
+
+    // 点击立即投保 → 填写信息（实线蓝色 = 截图）
+    line(180, 154, 145, 220, "#E53935", false);
+    label(155, 192, "下一步:截图", "#E53935");
+
+    // 客户告知书 → 投保提示（实线蓝色 = 截图）
+    line(570, 154, 570, 220, "#E53935", false);
+    label(600, 192, "确认:截图", "#E53935");
+
+    // 填写信息 → 阅读条款（实线紫色 = 混合）
+    line(145, 264, 145, 330, "#9C27B0", false);
+    label(120, 305, "查看:仅记录 | 确认:截图", "#9C27B0");
+
+    // 投保提示 → 阅读条款（实线蓝色 = 截图）
+    line(570, 264, 480, 330, "#E53935", false);
+
+    // 阅读条款 → 确认投保信息（实线蓝色 = 截图）
+    line(230, 374, 480, 330, "#E53935", false);
+
+    // 确认投保信息 → 支付（实线蓝色 = 截图）
+    line(570, 264, 350, 450, "#E53935", false);
+    label(480, 370, "确认投保:截图", "#E53935");
+
+    // 支付 → 完成（实线绿色 = 截图）
+    line(350, 494, 350, 560, "#4CAF50", false);
+    label(370, 535, "截图", "#4CAF50");
+
+    // ===== 节点详细说明（在右侧）=====
+    var dx = 780;
+    var headers = ["节点", "类型", "截图", "说明"];
+    var rows = [
+      ["session_start", "会话开始", "❌", "用户进入产品列表页"],
+      ["click_buy", "点击立即投保", "❌", "仅记录时间，不截图"],
+      ["view_client_notice", "查看客户告知书", "❌", "弹窗查看，仅记录"],
+      ["confirm_client_notice", "确认客户告知书", "✅", "用户确认后截图"],
+      ["confirm_notice", "确认进入投保流程", "✅", "监管强制节点，截图"],
+      ["focus/input/select", "填写表单字段", "❌", "每字段记录时间，不截图"],
+      ["go_agreement", "进入条款阅读页", "✅", "对整个表单页截图"],
+      ["view_agreement", "查看条款弹窗", "❌", "仅记录查看时间"],
+      ["confirm_agreement", "确认已阅读条款", "✅", "用户确认后截图"],
+      ["confirm_apply", "确认投保并支付", "✅", "关键节点，截图"],
+      ["payment", "完成支付", "✅", "支付完成，截图归档"],
+    ];
+
+  ]]></script>
+
+  <g id="g1"></g>
+
+  <!-- 右侧说明表格（用 foreignObject 嵌入 HTML 表格） -->
+  <foreignObject x="760" y="80" width="320" height="640">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:-apple-system,sans-serif; font-size:12px; color:#333; max-height:640px; overflow-y:auto;">
+      <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:#E53935;">节点详细列表</div>
+      <table style="width:100%; border-collapse:collapse; font-size:11px;">
+        <tr style="background:#FAFAFA;">
+          <th style="text-align:left; padding:6px 8px; border-bottom:2px solid #E0E0E0; font-weight:600;">节点</th>
+          <th style="text-align:center; padding:6px 8px; border-bottom:2px solid #E0E0E0; font-weight:600;">截图</th>
+          <th style="text-align:left; padding:6px 8px; border-bottom:2px solid #E0E0E0; font-weight:600;">说明</th>
+        </tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#E53935; font-weight:600;">session_start</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">❌</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">会话开始</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#FF9800; font-weight:600;">click_buy</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">❌</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">点击立即投保</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#FF9800; font-weight:600;">view_client_notice</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">❌</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">查看客户告知书</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#E53935; font-weight:600;">confirm_client_notice</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">✅</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">确认客户告知书</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#E53935; font-weight:600;">confirm_notice</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">✅</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">确认进入投保流程</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#FF9800; font-weight:600;">focus/input/select</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">❌</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">填写表单字段</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#E53935; font-weight:600;">go_agreement</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">✅</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">进入条款页（表单截图）</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#FF9800; font-weight:600;">view_agreement</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">❌</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">查看条款弹窗</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#E53935; font-weight:600;">confirm_agreement</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">✅</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">确认已阅读条款</td></tr>
+        <tr><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0; color:#E53935; font-weight:600;">confirm_apply</td><td style="text-align:center; padding:5px 8px; border-bottom:1px solid #F0F0F0;">✅</td><td style="padding:5px 8px; border-bottom:1px solid #F0F0F0;">确认投保并支付</td></tr>
+        <tr><td style="padding:5px 8px; color:#E53935; font-weight:600;">payment</td><td style="text-align:center; padding:5px 8px;">✅</td><td style="padding:5px 8px;">完成支付</td></tr>
+      </table>
+    </div>
+  </foreignObject>
+
+  <!-- 底部流程步骤说明 -->
+</svg>
+</div>
+
+<div class="flow-steps">
+  <h3>📋 完整操作流（按时间顺序）</h3>
+  <div class="flow-row">
+    <span style="background:#FFF3E0; color:#E65100; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">1. 点击立即投保 ❌截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#FFF3E0; color:#E65100; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">2. 查看客户告知书 ❌截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#E3F2FD; color:#1565C0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">3. 确认客户告知书 ✅截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#E3F2FD; color:#1565C0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">4. 确认进入投保流程 ✅截图</span>
+  </div>
+  <div class="flow-row">
+    <span style="background:#FFF3E0; color:#E65100; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">5. 填写表单（每字段）❌截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#E3F2FD; color:#1565C0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">6. 下一步：表单页截图 ✅截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#FFF3E0; color:#E65100; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">7. 查看条款 ❌截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#E3F2FD; color:#1565C0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">8. 确认条款 ✅截图</span>
+  </div>
+  <div class="flow-row">
+    <span style="background:#E3F2FD; color:#1565C0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">9. 确认投保 ✅截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#E3F2FD; color:#1565C0; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">10. 完成支付 ✅截图</span>
+    <span style="color:#BDBDBD;">→</span>
+    <span style="background:#E8F5E9; color:#2E7D32; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;">投保完成 🎉</span>
+  </div>
+</div>
+
+<div class="node-table">
+  <h3>📊 监管合规要点对应表</h3>
+  <table>
+    <tr>
+      <th>监管要求</th>
+      <th>对应节点</th>
+      <th>实现方式</th>
+    </tr>
+    <tr><td>进入/离开时点记录</td><td><span class="badge-s">session_start</span> <span class="badge-s">page_enter</span></td><td>每次页面切换自动记录时间戳</td></tr>
+    <tr><td>操作轨迹记录</td><td><span class="badge-n">focus/input/select</span></td><td>每个表单字段的聚焦、输入、选择均记录</td></tr>
+    <tr><td>单独页面展示条款</td><td><span class="badge-n">view_agreement</span></td><td>条款在独立弹窗展示，不与其他内容混排</td></tr>
+    <tr><td>自主确认已阅读</td><td><span class="badge-s">confirm_agreement</span> <span class="badge-s">confirm_client_notice</span></td><td>用户必须勾选确认，否则无法继续</td></tr>
+    <tr><td>销售页面版本管理</td><td><span class="badge-s">（后端）</span></td><td>每次截图保存页面快照，可供还原</td></tr>
+    <tr><td>资料保存≥5年</td><td><span class="badge-s">（后端）</span></td><td>所有节点+截图按保单号归档存储</td></tr>
+  </table>
+</div>
+
+
+
+<script>
+
+// ========= 全局状态 =========
+var recordedNodes = [];
+var sessionStart = Date.now();
+var screenshotCount = 0;
+var nodeCount = 0;
+var pageCount = 1;
+
+function currentTime() {
+  var d = new Date();
+  var h = String(d.getHours()).padStart(2, '0');
+  var m = String(d.getMinutes()).padStart(2, '0');
+  var s = String(d.getSeconds()).padStart(2, '0');
+  return h + ':' + m + ':' + s;
+}
+
+// ========= 视图切换 =========
+function switchView(view, el) {
+  var views = document.querySelectorAll('.view');
+  for (var i = 0; i < views.length; i++) views[i].classList.remove('active');
+  document.getElementById('view-' + view).classList.add('active');
+  var tabs = document.querySelectorAll('.tab-btn');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  el.classList.add('active');
+  if (view === 'admin') renderAdminTimeline();
+}
+
+// ========= 页面导航 =========
+function goPage(pageId) {
+  var pages = document.querySelectorAll('.page');
+  for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
+  document.getElementById(pageId).classList.add('active');
+  pageCount++;
+  var el = document.getElementById('statPages');
+  if (el) el.textContent = pageCount;
+  recordNodeInternal('page_enter', '进入页面：' + pageId.replace('page-', ''), false);
+}
+
+// ========= 核心：记录节点 =========
+function recordNode(type, desc, needScreenshot, callback) {
+  recordNodeInternal(type, desc, needScreenshot);
+  if (callback) setTimeout(callback, 600);
+}
+
+function recordNodeInternal(type, desc, needScreenshot) {
+  var node = {
+    type: type,
+    desc: desc,
+    time: new Date(),
+    timeStr: currentTime(),
+    hasScreenshot: needScreenshot
+  };
+  recordedNodes.push(node);
+  nodeCount++;
+  if (needScreenshot) screenshotCount++;
+
+  showToast(type, desc, needScreenshot);
+  if (needScreenshot) simulateScreenshot();
+  appendLog(node);
+  updateStats();
+}
+
+// ========= 截图闪光 =========
+function simulateScreenshot() {
+  var flash = document.getElementById('captureFlash');
+  flash.classList.add('active');
+  setTimeout(function() { flash.classList.remove('active'); }, 200);
+}
+
+// ========= Toast =========
+function showToast(type, desc, hasScreenshot) {
+  var toast = document.getElementById('nodeToast');
+  document.getElementById('toastTitle').textContent = '节点已记录';
+  var html = '<div>操作：' + desc + '</div>';
+  html += '<div>时间：' + currentTime() + '</div>';
+  if (hasScreenshot) html += '<div style="color:#FF9800; margin-top:4px;">已截图（模拟）</div>';
+  document.getElementById('toastContent').innerHTML = html;
+  toast.classList.add('show');
+  setTimeout(function() { toast.classList.remove('show'); }, 2500);
+}
+
+// ========= 日志面板 =========
+function appendLog(node) {
+  var panel = document.getElementById('logPanel');
+  var line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = '<span class="log-time">[' + node.timeStr + ']</span> [' + node.type + '] ' + node.desc + (node.hasScreenshot ? ' 📷' : '');
+  if (panel.querySelector('.log-line')) {
+    panel.insertBefore(line, panel.firstChild);
+  }
+}
+
+// ========= 更新统计 =========
+function updateStats() {
+  var elNodes = document.getElementById('statNodes');
+  var elScreenshots = document.getElementById('statScreenshots');
+  var elDuration = document.getElementById('statDuration');
+  if (elNodes) elNodes.textContent = nodeCount;
+  if (elScreenshots) elScreenshots.textContent = screenshotCount;
+  if (elDuration) {
+    var duration = Math.round((Date.now() - sessionStart) / 1000);
+    var min = Math.floor(duration / 60);
+    var sec = duration % 60;
+    elDuration.textContent = min > 0 ? min + 'm' + sec + 's' : sec + 's';
+  }
+}
+
+// ========= 输入框记录 =========
+function recordInput(el, fieldName) {
+  if (el.value) {
+    recordNodeInternal('input_field', '填写字段：' + fieldName + ' = ' + el.value.substring(0, 6) + '***', false);
+  }
+}
+
+// ========= 确认提示页 =========
+function toggleConfirmBtn() {
+  var checked = document.getElementById('agreeRecord').checked;
+  document.getElementById('confirmNoticeBtn').disabled = !checked;
+}
+
+// ========= 下一步：从填写信息页进入条款页 =========
+function goToAgreement() {
+  // 对整个被保险人信息页面截图（模拟）
+  recordNodeInternal('go_agreement', '进入条款阅读页面（含表单页截图）', true);
+  // 截图动画完成后再跳转
+  setTimeout(function() { goPage('page-agreement'); }, 800);
+}
+
+// ========= 客户告知书弹窗（点击立即投保时弹出）=========
+function openClientNotice() {
+  // 记录点击立即投保（不截图）
+  recordNodeInternal('click_buy', '点击立即投保', false);
+  // 弹出客户告知书弹窗，仅记录（不截图），确认时才截图
+  recordNodeInternal('view_client_notice', '查看客户告知书弹窗', false);
+  document.getElementById('agreeClientNotice').checked = false;
+  document.getElementById('confirmClientNoticeBtn').disabled = true;
+  document.getElementById('clientNoticeOverlay').classList.add('show');
+}
+
+function closeClientNotice() {
+  document.getElementById('clientNoticeOverlay').classList.remove('show');
+}
+
+function toggleClientNoticeBtn() {
+  document.getElementById('confirmClientNoticeBtn').disabled = !document.getElementById('agreeClientNotice').checked;
+}
+
+function confirmClientNotice() {
+  // 记录确认客户告知书（带截图）
+  recordNodeInternal('confirm_client_notice', '确认已阅读客户告知书', true);
+  closeClientNotice();
+  // 进入投保提示页面
+  setTimeout(function() { goPage('page-notice'); }, 600);
+}
+
+// ========= 条款查看 =========
+function openAgreement(name) {
+  currentAgreementName = name;
+  // 查看条款仅记录（不截图），确认时才截图
+  recordNodeInternal('view_agreement', '查看条款：' + name, false);
+  document.getElementById('agreementTitle').textContent = name;
+  document.getElementById('agreementContent').innerHTML = getAgreementContent(name);
+  document.getElementById('agreeCurrent').checked = false;
+  document.getElementById('agreementConfirmBtn').disabled = true;
+  document.getElementById('agreementOverlay').classList.add('show');
+}
+
+var currentAgreementName = '';
+
+function closeAgreement() {
+  document.getElementById('agreementOverlay').classList.remove('show');
+}
+
+function toggleAgreementConfirm() {
+  document.getElementById('agreementConfirmBtn').disabled = !document.getElementById('agreeCurrent').checked;
+}
+
+function confirmAgreement() {
+  recordNodeInternal('confirm_agreement_detail', '确认已阅读：' + currentAgreementName, true);
+  closeAgreement();
+}
+
+function checkAgreements() {
+  document.getElementById('confirmAgreementBtn').disabled = !document.getElementById('agreeAll').checked;
+}
+
+function getAgreementContent(name) {
+  var contents = {
+    '客户告知书': '<h4>客户告知书</h4><p>尊敬的客户：</p><p>感谢您选择XX财产保险股份有限公司的保险产品。</p><p>根据监管规定，特此告知以下内容：</p><p>1. 本公司系依法设立的保险公司，具备经营保险业务的合法资质。</p><p>2. 本保险产品由XX财产保险股份有限公司承保，全国服务热线：400-XXX-XXXX。</p><p>3. 请您仔细阅读保险条款，特别是免除保险公司责任条款。</p><p>4. 您有权在犹豫期内（如有）申请撤销保险合同。</p><p>5. 如发生保险事故，请及时拨打报案电话：400-XXX-XXXX。</p><p style="margin-top:20px; color:#999;">（以下为模拟内容，实际以保险公司官方条款为准）</p>',
+    '保险条款（主条款）': '<h4>保险条款</h4><p><strong>第一条 保险合同构成</strong></p><p>本保险合同由保险条款、投保单、保险单、批单及其他书面协议构成。</p><p><strong>第二条 保险责任</strong></p><p>在保险期间内，被保险人在旅行期间因意外伤害事故导致身故、伤残的，本公司按约定给付保险金。</p><p><strong>第三条 责任免除</strong></p><p>因下列原因造成被保险人身故、伤残的，本公司不承担给付保险金责任，详见《免除责任条款》。</p><p style="margin-top:20px; color:#999;">（以下为模拟内容，实际以保险公司官方条款为准）</p>',
+    '免除保险公司责任条款': '<h4 style="color:#E53935;">免除保险公司责任条款</h4><p style="color:#E53935; font-weight:600; margin-bottom:12px;">以下内容为免除保险公司责任的条款，请仔细阅读：</p><p>1. 投保人、被保险人或受益人的故意行为造成的损失；</p><p>2. 被保险人从事高风险运动（如攀岩、跳伞、潜水等）期间发生的事故，除非已额外投保；</p><p>3. 被保险人醉酒或受毒品、管制药物影响期间发生的事故；</p><p>4. 战争、军事冲突、暴乱或武装叛乱；</p><p>5. 核爆炸、核辐射或核污染；</p><p>6. 被保险人未遵守医生建议、或未遵医嘱擅自用药；</p><p>7. 先天性疾病、遗传性疾病。</p><p style="margin-top:20px; color:#999;">（以下为模拟内容，实际以保险公司官方条款为准）</p>',
+    '健康告知书': '<h4>健康告知书</h4><p style="font-weight:600; margin-bottom:12px;">请如实填写以下健康告知内容，未尽如实告知义务可能影响您的理赔权益。</p><p><strong>1. 您是否曾患有或被告知患有以下疾病：</strong></p><p style="margin-left:16px;">□ 恶性肿瘤 &nbsp;&nbsp; □ 心脑血管疾病 &nbsp;&nbsp; □ 糖尿病 &nbsp;&nbsp; □ 精神疾病</p><p><strong>2. 您是否正在接受医疗检查或治疗？</strong></p><p><strong>3. 您是否有过住院史或手术史？</strong></p><p><strong>4. 女性被保人：是否怀孕或备孕？</strong></p><p><strong>5. 近一年内是否有过体检异常？</strong></p><p style="margin-top:20px; color:#E53935;">温馨提示：不如实告知可能导致保险合同无效或影响理赔，请务必如实填写。</p>'
+  };
+  return contents[name] || '<p>条款内容加载中...</p>';
+}
+
+// ========= 完成投保 =========
+function finishPurchase() {
+  recordNodeInternal('purchase_done', '投保完成，生成保单', true);
+  setTimeout(function() { goPage('page-done'); }, 800);
+}
+
+// ========= 重置演示 =========
+function resetDemo() {
+  recordedNodes = [];
+  nodeCount = 0;
+  screenshotCount = 0;
+  pageCount = 1;
+  sessionStart = Date.now();
+  document.getElementById('logPanel').innerHTML = '<div class="log-line"><span class="log-time">[等待操作]</span> 请在左侧页面中操作...</div>';
+  updateStats();
+  var el = document.getElementById('statPages');
+  if (el) el.textContent = '1';
+  goPage('page-product');
+}
+
+// ========= 管理端时间线 =========
+function renderAdminTimeline() {
+  var timeline = document.getElementById('adminTimeline');
+  var nodes = [
+    { time: '14:32:08', type: 'payment', title: '完成支付', desc: '用户完成保费支付，支付金额¥299，支付方式：微信支付', screenshot: true },
+    { time: '14:31:52', type: 'confirm_apply', title: '点击确认投保', desc: '用户在确认投保页面点击"确认投保并支付"按钮', screenshot: true },
+    { time: '14:31:30', type: 'confirm_agreement', title: '确认已阅读所有条款', desc: '用户确认已阅读：保险条款、免除责任条款、健康告知', screenshot: true },
+    { time: '14:30:45', type: 'view_agreement', title: '查看：免除保险公司责任条款', desc: '用户在单独页面查看免除责任条款，阅读时长：38秒', screenshot: false },
+    { time: '14:30:10', type: 'view_agreement', title: '查看：保险条款（主条款）', desc: '用户在单独页面查看保险条款主条款，阅读时长：32秒', screenshot: false },
+    { time: '14:29:40', type: 'input_field', title: '填写投保信息', desc: '用户填写被保险人姓名、身份证号、出行日期等字段（共6个字段）', screenshot: false },
+    { time: '14:29:00', type: 'confirm_notice', title: '确认进入投保流程', desc: '用户阅读投保提示后确认进入投保流程（监管强制节点）', screenshot: true },
+    { time: '14:28:50', type: 'confirm_client_notice', title: '确认客户告知书', desc: '用户在客户告知书弹窗中确认已阅读（截图）', screenshot: true },
+    { time: '14:28:40', type: 'view_client_notice', title: '查看客户告知书', desc: '用户点击立即投保后弹出客户告知书弹窗（仅记录，不截图）', screenshot: false },
+    { time: '14:28:30', type: 'click_buy', title: '点击立即投保', desc: '用户从产品详情页点击"立即投保"按钮（仅记录，不截图）', screenshot: false },
+    { time: '14:27:15', type: 'enter_page', title: '进入产品详情页', desc: '用户进入安心游境外旅行险（豪华版）详情页', screenshot: false }
+  ];
+
+  var html = '';
+  for (var i = 0; i < nodes.length; i++) {
+    var n = nodes[i];
+    var dotClass = n.screenshot ? 'screenshot' : 'recorded';
+    html += '<div class="timeline-item">';
+    html += '<div class="timeline-dot ' + dotClass + '"></div>';
+    html += '<div class="timeline-content">';
+    html += '<div class="timeline-time">' + n.time + '</div>';
+    html += '<div class="timeline-title">' + n.title + '</div>';
+    html += '<div style="font-size:13px; color:#757575; margin-bottom:6px;">' + n.desc + '</div>';
+    html += '<div>';
+    html += '<span class="timeline-badge badge-time">⏱️ ' + n.time + '</span>';
+    if (n.screenshot) html += '<span class="timeline-badge badge-screenshot">📷 已截图</span>';
+    html += '<span class="timeline-badge badge-page">节点类型：' + n.type + '</span>';
+    html += '</div>';
+    if (n.screenshot) {
+      html += '<div class="timeline-screenshot" onclick="showPreview(\'' + n.title + '\', \'' + n.time + '\')">';
+      html += '<div class="screenshot-placeholder">📷 点击查看截图：' + n.title + '</div>';
+      html += '<div class="screenshot-label">记录时间：' + n.time + ' ｜ 点击查看完整截图</div>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+  timeline.innerHTML = html;
+}
+
+// ========= 截图预览 =========
+function showPreview(title, time) {
+  document.getElementById('previewHeader').textContent = '截图预览 — ' + title + '（记录时间：' + time + '）';
+  document.getElementById('previewBody').innerHTML =
+    '<div style="font-size:13px; color:#999; margin-bottom:16px;">页面截图模拟 ｜ 记录时间：' + time + ' ｜ 用户：张***</div>' +
+    '<div style="background:#F5F5F5; border-radius:8px; padding:24px; margin-bottom:16px;">' +
+    '<div style="font-size:18px; font-weight:600; margin-bottom:12px;">' + title + '</div>' +
+    '<div style="font-size:14px; line-height:2; color:#333;">（此处为实际页面截图内容）<br>截图将完整还原用户当时的操作界面<br>包括页面内容、滚动位置、已填字段等</div>' +
+    '</div>' +
+    '<div style="font-size:11px; color:#999; border-top:1px solid #E0E0E0; padding-top:12px;">可回溯记录 ｜ 银保监发〔2020〕26号 ｜ 保存期限：≥5年 ｜ 截图序号：#001</div>';
+  document.getElementById('screenshotPreview').classList.add('show');
+}
+
+function closePreview() {
+  document.getElementById('screenshotPreview').classList.remove('show');
+}
+
+<!-- ========= 思维导图视图 ========= -->
+<div class="main view" id="view-mindmap">
+  <div class="prototype-label">原型演示：投保流程关键节点思维导图（可回溯管理全流程）</div>
+
+  <div style="background:var(--card); border-radius:10px; padding:32px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+    <div style="text-align:center; margin-bottom:28px;">
+      <h2 style="font-size:20px; margin-bottom:8px;">互联网保险投保可回溯流程思维导图</h2>
+      <div style="font-size:13px; color:var(--text-secondary);">基于银保监发〔2020〕26号监管要求的完整操作节点映射</div>
+    </div>
+
+    <svg id="mindmapSvg" width="100%" height="700" style="overflow:visible;">
+      <defs>
+        <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#E53935"/>
+        </marker>
+        <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#2196F3"/>
+        </marker>
+        <marker id="arrowGray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#999"/>
+        </marker>
+      </defs>
+      <g id="mindmapGroup"></g>
+    </svg>
+
+    <div style="display:flex; gap:24px; margin-top:24px; flex-wrap:wrap; font-size:12px; color:var(--text-secondary);">
+      <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px; height:12px; border-radius:50%; background:#E53935;"></div> 记录节点（含截图）</div>
+      <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px; height:12px; border-radius:50%; background:#FF9800;"></div> 记录节点（仅记录）</div>
+      <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px; height:3px; background:#E53935;"></div> 截图触发</div>
+      <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px; height:3px; background:#999; stroke-dasharray:4,2;"></div> 仅记录（不截图）</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px; background:var(--card); border-radius:10px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+    <div style="font-weight:600; margin-bottom:12px; font-size:15px;">节点说明</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 32px; font-size:13px; line-height:2;">
+      <div><span style="color:var(--primary); font-weight:600;">● click_buy</span> 点击立即投保（仅记录，不截图）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● view_client_notice</span> 查看客户告知书（仅记录）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● confirm_client_notice</span> 确认客户告知书（截图）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● confirm_notice</span> 确认进入投保流程（截图）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● focus/input/select</span> 填写表单字段（仅记录）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● go_agreement</span> 进入条款页（表单页截图）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● view_agreement</span> 查看条款（仅记录）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● confirm_agreement</span> 确认已阅读条款（截图）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● confirm_apply</span> 确认投保（截图）</div>
+      <div><span style="color:var(--primary); font-weight:600;">● payment</span> 完成支付（截图）</div>
+    </div>
+  </div>
+</div>
+
+
+
+// ========= 初始化 =========
+updateStats();
+recordNodeInternal('session_start', '会话开始：用户进入产品列表页', false);
+</script>
+
+
+<script>
+
+// ========= 思维导图渲染 =========
+function renderMindMap() {
+  var svg = document.getElementById('mindmapSvg');
+  var g = document.getElementById('mindmapGroup');
+  if (!g || g.children.length > 0) return; // 已渲染过
+
+  var W = svg.clientWidth || 1000;
+  var cx = W / 2;
+  var cy = 350;
+
+  // 节点定义：[标签, x偏移, y偏移, 类型(screenshot/record/action), 描述]
+  var nodes = [
+    // 根节点
+    { id:'root',  label:'开始投保',      x:cx,    y:30,   w:120, h:44, type:'root',   desc:'会话开始' },
+    // 第一层
+    { id:'buy',    label:'点击立即投保',  x:cx-300, y:110,  w:140, h:40, type:'record',  desc:'仅记录时间\n不截图' },
+    { id:'notice', label:'客户告知书',    x:cx+40,  y:110,  w:140, h:40, type:'screenshot', desc:'弹窗查看\n确认时截图' },
+    // 第二层
+    { id:'form',   label:'填写投保信息',  x:cx-400, y:220,  w:150, h:40, type:'screenshot', desc:'点下一步时\n表单页截图' },
+    { id:'tip',    label:'投保提示页',    x:cx-80,  y:220,  w:150, h:40, type:'screenshot', desc:'确认进入\n流程（截图）' },
+    // 第三层
+    { id:'agree',  label:'阅读保险条款',  x:cx-300, y:330,  w:150, h:40, type:'mixed', desc:'查看仅记录\n确认时截图' },
+    { id:'confirm',label:'确认投保信息',  x:cx+40,  y:330,  w:150, h:40, type:'screenshot', desc:'确认投保\n（截图）' },
+    // 第四层
+    { id:'pay',    label:'支付保费',      x:cx-80,  y:450,  w:150, h:40, type:'screenshot', desc:'完成支付\n（截图）' },
+    { id:'done',   label:'投保完成',      x:cx-80,  y:560,  w:120, h:44, type:'done',  desc:'生成保单\n记录归档' },
+  ];
+
+  // 连线定义：[from_id, to_id, 类型]
+  var edges = [
+    ['root','buy',    'record'],
+    ['root','notice',  'record'],
+    ['buy','form',     'screenshot'],
+    ['notice','tip',   'screenshot'],
+    ['form','agree',   'mixed'],
+    ['tip','agree',    'screenshot'],
+    ['agree','confirm','screenshot'],
+    ['confirm','pay',  'screenshot'],
+    ['pay','done',    'screenshot'],
+  ];
+
+  var colors = {
+    root:       {bg:'#E53935', text:'white', border:'#AB000D'},
+    screenshot: {bg:'#E3F2FD', text:'#1565C0', border:'#2196F3'},
+    record:     {bg:'#FFF3E0', text:'#E65100', border:'#FF9800'},
+    mixed:      {bg:'#F3E5F5', text:'#6A1B9A', border:'#9C27B0'},
+    done:       {bg:'#E8F5E9', text:'#2E7D32', border:'#4CAF50'},
+  };
+
+  var edgeColors = { screenshot:'#2196F3', record:'#FF9800', mixed:'#9C27B0' };
+
+  // 画连线
+  edges.forEach(function(e) {
+    var from = nodes.find(function(n){ return n.id===e[0]; });
+    var to   = nodes.find(function(n){ return n.id===e[1]; });
+    if (!from || !to) return;
+    var x1 = from.x + from.w/2;
+    var y1 = from.y + from.h;
+    var x2 = to.x + to.w/2;
+    var y2 = to.y;
+    var ec = edgeColors[e[2]] || '#999';
+    var isDashed = (e[2]==='record');
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', ec);
+    line.setAttribute('stroke-width', '2');
+    if (isDashed) line.setAttribute('stroke-dasharray', '6,3');
+    line.setAttribute('marker-end', 'url(#arrow' + (ec==='#2196F3'?'Blue':ec==='#FF9800'?'Red':'Gray') + ')');
+    g.appendChild(line);
+
+    // 连线标签
+    var mx = (x1+x2)/2;
+    var my = (y1+y2)/2 - 8;
+    var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', mx);
+    label.setAttribute('y', my);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-size', '10');
+    label.setAttribute('fill', ec);
+    label.textContent = e[2]==='screenshot' ? '截图' : e[2]==='record' ? '仅记录' : '混合';
+    g.appendChild(label);
+  });
+
+  // 画节点
+  nodes.forEach(function(n) {
+    var c = colors[n.type] || colors.record;
+    // 背景矩形
+    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', n.x);
+    rect.setAttribute('y', n.y);
+    rect.setAttribute('width', n.w);
+    rect.setAttribute('height', n.h);
+    rect.setAttribute('rx', '8');
+    rect.setAttribute('fill', c.bg);
+    rect.setAttribute('stroke', c.border);
+    rect.setAttribute('stroke-width', '2');
+    if (n.type==='root' || n.type==='done') rect.setAttribute('stroke-width', '3');
+    g.appendChild(rect);
+
+    // 节点文字（可多行）
+    var lines = n.label.split('\n');
+    lines.forEach(function(line, idx) {
+      var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', n.x + n.w/2);
+      t.setAttribute('y', n.y + n.h/2 + (lines.length>1 ? (idx-0.3)*14 : 5));
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', n.type==='root'||n.type==='done' ? '14' : '12');
+      t.setAttribute('font-weight', '600');
+      t.setAttribute('fill', c.text);
+      t.textContent = line;
+      g.appendChild(t);
+    });
+
+    // 描述文字（节点下方）
+    if (n.desc) {
+      var d = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      d.setAttribute('x', n.x + n.w/2);
+      d.setAttribute('y', n.y + n.h + 14);
+      d.setAttribute('text-anchor', 'middle');
+      d.setAttribute('font-size', '9');
+      d.setAttribute('fill', '#999');
+      d.textContent = n.desc;
+      g.appendChild(d);
+    }
+  });
+}
+
+// 在页面显示时触发渲染
+var _origSwitchView = switchView;
+// 重写 switchView 以触发思维导图渲染
+function switchView(view, el) {
+  var views = document.querySelectorAll('.view');
+  for (var i = 0; i < views.length; i++) views[i].classList.remove('active');
+  document.getElementById('view-' + view).classList.add('active');
+  var tabs = document.querySelectorAll('.tab-btn');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  if (el) el.classList.add('active');
+  if (view === 'admin') renderAdminTimeline();
+  if (view === 'mindmap') setTimeout(renderMindMap, 100);
+}
+
+</script>
+
+</body>
+</html></script>
+<script>
+
+// ========= 思维导图渲染 =========
+function renderMindMap() {
+  var svg = document.getElementById('mindmapSvg');
+  var g = document.getElementById('mindmapGroup');
+  if (!g || g.children.length > 0) return; // 已渲染过
+
+  var W = svg.clientWidth || 1000;
+  var cx = W / 2;
+  var cy = 350;
+
+  // 节点定义：[标签, x偏移, y偏移, 类型(screenshot/record/action), 描述]
+  var nodes = [
+    // 根节点
+    { id:'root',  label:'开始投保',      x:cx,    y:30,   w:120, h:44, type:'root',   desc:'会话开始' },
+    // 第一层
+    { id:'buy',    label:'点击立即投保',  x:cx-300, y:110,  w:140, h:40, type:'record',  desc:'仅记录时间\n不截图' },
+    { id:'notice', label:'客户告知书',    x:cx+40,  y:110,  w:140, h:40, type:'screenshot', desc:'弹窗查看\n确认时截图' },
+    // 第二层
+    { id:'form',   label:'填写投保信息',  x:cx-400, y:220,  w:150, h:40, type:'screenshot', desc:'点下一步时\n表单页截图' },
+    { id:'tip',    label:'投保提示页',    x:cx-80,  y:220,  w:150, h:40, type:'screenshot', desc:'确认进入\n流程（截图）' },
+    // 第三层
+    { id:'agree',  label:'阅读保险条款',  x:cx-300, y:330,  w:150, h:40, type:'mixed', desc:'查看仅记录\n确认时截图' },
+    { id:'confirm',label:'确认投保信息',  x:cx+40,  y:330,  w:150, h:40, type:'screenshot', desc:'确认投保\n（截图）' },
+    // 第四层
+    { id:'pay',    label:'支付保费',      x:cx-80,  y:450,  w:150, h:40, type:'screenshot', desc:'完成支付\n（截图）' },
+    { id:'done',   label:'投保完成',      x:cx-80,  y:560,  w:120, h:44, type:'done',  desc:'生成保单\n记录归档' },
+  ];
+
+  // 连线定义：[from_id, to_id, 类型]
+  var edges = [
+    ['root','buy',    'record'],
+    ['root','notice',  'record'],
+    ['buy','form',     'screenshot'],
+    ['notice','tip',   'screenshot'],
+    ['form','agree',   'mixed'],
+    ['tip','agree',    'screenshot'],
+    ['agree','confirm','screenshot'],
+    ['confirm','pay',  'screenshot'],
+    ['pay','done',    'screenshot'],
+  ];
+
+  var colors = {
+    root:       {bg:'#E53935', text:'white', border:'#AB000D'},
+    screenshot: {bg:'#E3F2FD', text:'#1565C0', border:'#2196F3'},
+    record:     {bg:'#FFF3E0', text:'#E65100', border:'#FF9800'},
+    mixed:      {bg:'#F3E5F5', text:'#6A1B9A', border:'#9C27B0'},
+    done:       {bg:'#E8F5E9', text:'#2E7D32', border:'#4CAF50'},
+  };
+
+  var edgeColors = { screenshot:'#2196F3', record:'#FF9800', mixed:'#9C27B0' };
+
+  // 画连线
+  edges.forEach(function(e) {
+    var from = nodes.find(function(n){ return n.id===e[0]; });
+    var to   = nodes.find(function(n){ return n.id===e[1]; });
+    if (!from || !to) return;
+    var x1 = from.x + from.w/2;
+    var y1 = from.y + from.h;
+    var x2 = to.x + to.w/2;
+    var y2 = to.y;
+    var ec = edgeColors[e[2]] || '#999';
+    var isDashed = (e[2]==='record');
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', ec);
+    line.setAttribute('stroke-width', '2');
+    if (isDashed) line.setAttribute('stroke-dasharray', '6,3');
+    line.setAttribute('marker-end', 'url(#arrow' + (ec==='#2196F3'?'Blue':ec==='#FF9800'?'Red':'Gray') + ')');
+    g.appendChild(line);
+
+    // 连线标签
+    var mx = (x1+x2)/2;
+    var my = (y1+y2)/2 - 8;
+    var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', mx);
+    label.setAttribute('y', my);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-size', '10');
+    label.setAttribute('fill', ec);
+    label.textContent = e[2]==='screenshot' ? '截图' : e[2]==='record' ? '仅记录' : '混合';
+    g.appendChild(label);
+  });
+
+  // 画节点
+  nodes.forEach(function(n) {
+    var c = colors[n.type] || colors.record;
+    // 背景矩形
+    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', n.x);
+    rect.setAttribute('y', n.y);
+    rect.setAttribute('width', n.w);
+    rect.setAttribute('height', n.h);
+    rect.setAttribute('rx', '8');
+    rect.setAttribute('fill', c.bg);
+    rect.setAttribute('stroke', c.border);
+    rect.setAttribute('stroke-width', '2');
+    if (n.type==='root' || n.type==='done') rect.setAttribute('stroke-width', '3');
+    g.appendChild(rect);
+
+    // 节点文字（可多行）
+    var lines = n.label.split('\n');
+    lines.forEach(function(line, idx) {
+      var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', n.x + n.w/2);
+      t.setAttribute('y', n.y + n.h/2 + (lines.length>1 ? (idx-0.3)*14 : 5));
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', n.type==='root'||n.type==='done' ? '14' : '12');
+      t.setAttribute('font-weight', '600');
+      t.setAttribute('fill', c.text);
+      t.textContent = line;
+      g.appendChild(t);
+    });
+
+    // 描述文字（节点下方）
+    if (n.desc) {
+      var d = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      d.setAttribute('x', n.x + n.w/2);
+      d.setAttribute('y', n.y + n.h + 14);
+      d.setAttribute('text-anchor', 'middle');
+      d.setAttribute('font-size', '9');
+      d.setAttribute('fill', '#999');
+      d.textContent = n.desc;
+      g.appendChild(d);
+    }
+  });
+}
+
+// 在页面显示时触发渲染
+var _origSwitchView = switchView;
+// 重写 switchView 以触发思维导图渲染
+function switchView(view, el) {
+  var views = document.querySelectorAll('.view');
+  for (var i = 0; i < views.length; i++) views[i].classList.remove('active');
+  document.getElementById('view-' + view).classList.add('active');
+  var tabs = document.querySelectorAll('.tab-btn');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  if (el) el.classList.add('active');
+  if (view === 'admin') renderAdminTimeline();
+  if (view === 'mindmap') setTimeout(renderMindMap, 100);
+}
+
+
+</script>
+</body>
+</html>
